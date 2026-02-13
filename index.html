@@ -1,0 +1,1937 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Soham Takuri — PBP Dossier (Globe Routes + Decode)</title>
+
+  <style>
+    :root{
+      --bg:#050712;
+      --ink:#eaf0ff;
+      --muted:rgba(234,240,255,.72);
+      --line:rgba(255,255,255,.12);
+      --accent:#7aa2ff;
+      --accent2:#9bffd7;
+      --shadow: 0 18px 60px rgba(0,0,0,.55);
+      --r:22px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      --hx: 50%;
+      --hy: 50%;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      color:var(--ink);
+      font-family: var(--sans);
+      background:
+        radial-gradient(1200px 700px at 15% 0%, rgba(122,162,255,.18), transparent 55%),
+        radial-gradient(900px 650px at 90% 20%, rgba(155,255,215,.10), transparent 60%),
+        radial-gradient(1200px 900px at 50% 110%, rgba(176,140,255,.10), transparent 55%),
+        linear-gradient(180deg, #070a16, var(--bg));
+      overflow:hidden;
+      cursor:auto;
+    }
+    body.js-ready{ cursor:none; }
+
+    #stage{position:fixed; inset:0; z-index:0;}
+    #stage canvas{width:100%; height:100%; display:block}
+
+    .grain{
+      position:fixed; inset:0; z-index:1;
+      pointer-events:none;
+      opacity:.12;
+      mix-blend-mode: overlay;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E");
+    }
+
+    .fail{
+      position:fixed; inset:0;
+      display:none;
+      z-index:999;
+      place-items:center;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(10px);
+    }
+    .fail.on{ display:grid; }
+    .fail .card{
+      width:min(520px, calc(100vw - 28px));
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(10,14,28,.45);
+      border-radius: 18px;
+      padding:14px;
+      box-shadow: 0 22px 90px rgba(0,0,0,.6);
+    }
+    .fail h3{margin:0 0 8px; font-size:14px}
+    .fail p{margin:0; color:rgba(234,240,255,.78); font-size:13px; line-height:1.5}
+    .fail code{
+      display:block;
+      margin-top:10px;
+      padding:10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      color: rgba(234,240,255,.85);
+      font-family: var(--mono);
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+
+    .cursorBlob{
+      position:fixed; left:0; top:0;
+      width:54px; height:54px;
+      transform: translate(-50%,-50%);
+      border-radius: 999px;
+      pointer-events:none;
+      z-index: 10;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.45), rgba(255,255,255,0) 38%),
+        radial-gradient(circle at 60% 60%, rgba(155,255,215,.35), rgba(122,162,255,.18) 42%, rgba(0,0,0,0) 72%);
+      filter: blur(2px) saturate(1.15);
+      mix-blend-mode: screen;
+      opacity: .92;
+      transition: width .18s ease, height .18s ease, opacity .18s ease, filter .18s ease;
+      display:none;
+    }
+    body.js-ready .cursorBlob{ display:block; }
+    .cursorBlob.big{ width:92px; height:92px; opacity:.98; filter: blur(1px) saturate(1.22); }
+
+    .cursorDot{
+      position:fixed; left:0; top:0;
+      width:6px; height:6px;
+      transform: translate(-50%,-50%);
+      border-radius:999px;
+      background: rgba(234,240,255,.85);
+      box-shadow: 0 0 18px rgba(122,162,255,.45), 0 0 26px rgba(155,255,215,.24);
+      pointer-events:none;
+      z-index: 11;
+      mix-blend-mode: screen;
+      display:none;
+    }
+    body.js-ready .cursorDot{ display:block; }
+
+    .hoverGlow{
+      position:fixed; inset:0; pointer-events:none; z-index:2;
+      background:
+        radial-gradient(520px 320px at var(--hx) var(--hy),
+          rgba(122,162,255,.18),
+          rgba(155,255,215,.10) 25%,
+          rgba(0,0,0,0) 60%);
+      opacity:.75;
+      transition: opacity .18s ease;
+      mix-blend-mode: screen;
+    }
+
+    .top{
+      position:fixed; top:18px; left:18px; right:18px;
+      z-index:3;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:14px;
+      pointer-events:none;
+    }
+    .brand, .hud{
+      pointer-events:auto;
+      backdrop-filter: blur(14px);
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      box-shadow: var(--shadow);
+      border-radius: 999px;
+      padding: 10px 12px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      position:relative;
+      overflow:hidden;
+    }
+    .brand::after, .hud::after{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(420px 220px at var(--hx) var(--hy), rgba(155,255,215,.14), transparent 60%);
+      opacity:.45;
+      pointer-events:none;
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.65), rgba(155,255,215,.9));
+      box-shadow: 0 0 18px rgba(155,255,215,.35);
+    }
+    .brand strong{font-weight:850; letter-spacing:.2px; font-size:13px}
+    .brand span{color:var(--muted); font-size:12px}
+    .hud{gap:12px;}
+    .hud .pill{
+      font-family: var(--mono);
+      font-size:11px;
+      color:rgba(234,240,255,.78);
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      padding:7px 10px;
+      border-radius: 999px;
+      white-space:nowrap;
+    }
+    .hud button{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--ink);
+      font-weight:800;
+      font-size:12px;
+      padding:8px 10px;
+      border-radius: 999px;
+      cursor:pointer;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .hud button:hover{
+      transform: translateY(-1px);
+      background: rgba(122,162,255,.10);
+      border-color: rgba(122,162,255,.40);
+    }
+
+    .hint{
+      position:fixed; left:50%; bottom:22px;
+      transform: translateX(-50%);
+      z-index:3; pointer-events:none;
+      display:flex; gap:10px; align-items:center;
+      color:rgba(234,240,255,.68);
+      font-size:12px;
+      padding:10px 12px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(10,14,28,.20);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 16px 50px rgba(0,0,0,.35);
+    }
+    .kbd{
+      font-family: var(--mono);
+      font-size:11px;
+      padding:4px 7px;
+      border-radius: 8px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color:rgba(234,240,255,.78);
+    }
+
+    .label{
+      position:fixed; z-index:4;
+      transform: translate(-50%, -50%);
+      pointer-events:auto;
+      user-select:none;
+      opacity:0;
+      transition: opacity .25s ease;
+    }
+    .label.on{opacity:1}
+    .label button{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(10,14,28,.20);
+      backdrop-filter: blur(16px);
+      color: var(--ink);
+      padding:10px 12px;
+      border-radius: 999px;
+      cursor:pointer;
+      box-shadow: 0 16px 50px rgba(0,0,0,.38);
+      display:flex; align-items:center; gap:10px;
+      position:relative; overflow:hidden;
+    }
+    .label .miniDot{
+      width:9px; height:9px; border-radius:999px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 18px rgba(122,162,255,.35);
+    }
+    .label .t{display:flex; flex-direction:column; gap:1px; text-align:left;}
+    .label .t b{font-size:12px}
+    .label .t i{font-style:normal; font-size:11px; color:rgba(234,240,255,.70)}
+
+    .backdrop{
+      position:fixed; inset:0; z-index:4;
+      background: rgba(0,0,0,.38);
+      opacity:0; pointer-events:none;
+      transition: opacity .22s ease;
+    }
+    .backdrop.on{opacity:1; pointer-events:auto}
+
+    .panel{
+      position:fixed; top:50%; left:50%;
+      transform: translate(-50%,-50%) scale(.985);
+      width:min(760px, calc(100vw - 28px));
+      max-height: min(80vh, 860px);
+      z-index:5;
+      border-radius: var(--r);
+      border:1px solid rgba(255,255,255,.14);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(10,14,28,.34));
+      backdrop-filter: blur(18px);
+      box-shadow: 0 30px 120px rgba(0,0,0,.65);
+      overflow:hidden;
+      opacity:0; pointer-events:none;
+      transition: opacity .22s ease, transform .22s ease;
+    }
+    .panel.on{opacity:1; pointer-events:auto; transform: translate(-50%,-50%) scale(1); }
+    .panelHeader{
+      display:flex; justify-content:space-between; gap:12px;
+      padding:14px 14px 10px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+      position:relative;
+      overflow:hidden;
+    }
+    .panelHeader .k{
+      font-family: var(--mono);
+      font-size:11px;
+      color:rgba(234,240,255,.72);
+      letter-spacing:.12em;
+      text-transform:uppercase;
+    }
+    .panelHeader h2{margin:6px 0 0; font-size:16px; min-height:1.2em;}
+    .panelHeader .x{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--ink);
+      border-radius: 12px;
+      cursor:pointer;
+      padding:8px 10px;
+      font-weight:900;
+    }
+    .panelBody{
+      padding:14px;
+      overflow:auto;
+      max-height: calc(min(80vh, 860px) - 54px);
+    }
+
+    .p{margin:0 0 10px; color:rgba(234,240,255,.84); line-height:1.55; font-size:13px}
+    .muted{color:rgba(234,240,255,.70)}
+    .hr{height:1px; background: rgba(255,255,255,.10); margin:12px 0}
+    .chips{display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 0}
+    .chip{
+      font-size:11px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      color:rgba(234,240,255,.78);
+      font-family: var(--mono);
+    }
+    details{
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.035);
+      border-radius: 16px;
+      padding:10px 12px;
+      margin:10px 0;
+    }
+    summary{cursor:pointer; font-weight:900; font-size:12px;}
+    details p{margin:8px 0 0; font-size:13px; line-height:1.55; color:rgba(234,240,255,.84); }
+
+    .shard{
+      position:fixed;
+      width:8px; height:8px;
+      border-radius: 6px;
+      pointer-events:none;
+      z-index: 6;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.65), rgba(255,255,255,0) 55%),
+        radial-gradient(circle at 70% 70%, rgba(155,255,215,.30), rgba(122,162,255,.18) 45%, rgba(0,0,0,0) 75%);
+      box-shadow: 0 0 22px rgba(122,162,255,.35);
+      mix-blend-mode: screen;
+      opacity: .92;
+    }
+
+    #guide .panelHeader::after{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(520px 260px at var(--hx) var(--hy), rgba(155,255,215,.16), transparent 60%);
+      opacity:.50;
+      pointer-events:none;
+    }
+    details {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+
+details ul {
+  margin-top: 10px;
+  padding-left: 20px;
+  line-height: 1.6;
+  color: #eaf0ff;
+}
+
+details li {
+  margin-bottom: 10px;
+}
+
+  </style>
+</head>
+
+<body>
+  <div id="stage" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="hoverGlow" aria-hidden="true"></div>
+
+  <div class="cursorBlob" aria-hidden="true"></div>
+  <div class="cursorDot" aria-hidden="true"></div>
+
+  <div class="top">
+    <div class="brand" role="banner" data-hover>
+      <div class="dot"></div>
+      <div><strong>Soham Takuri</strong><span> • PBP Dossier</span></div>
+    </div>
+
+    <div class="hud" role="navigation" aria-label="Controls" data-hover>
+      <div class="pill" id="hudMode">MODE: DRAG</div>
+      <div class="pill" id="hudHint">CLICK A NODE</div>
+      <button id="btnReset" type="button" data-hover>Reset</button>
+      <button id="btnAuto" type="button" data-hover>Auto</button>
+      <button id="btnGuide" type="button" data-hover>Guide</button>
+    </div>
+  </div>
+
+  <div class="hint" aria-hidden="true">
+    Drag to rotate • Scroll to zoom • Click nodes
+    <span class="kbd">1–5</span> transmit • <span class="kbd">H</span> guide • <span class="kbd">Esc</span> close
+  </div>
+
+  <div class="label" id="lbl1"><button type="button" data-open="t1" data-hover><span class="miniDot"></span><span class="t"><b>Task 1</b><i>Memo</i></span></button></div>
+  <div class="label" id="lbl2"><button type="button" data-open="t2" data-hover><span class="miniDot"></span><span class="t"><b>Task 2</b><i>30 Questions</i></span></button></div>
+  <div class="label" id="lbl3"><button type="button" data-open="t3" data-hover><span class="miniDot"></span><span class="t"><b>Task 3</b><i>Essence</i></span></button></div>
+  <div class="label" id="lbl4"><button type="button" data-open="t4" data-hover><span class="miniDot"></span><span class="t"><b>Task 4</b><i>Context</i></span></button></div>
+  <div class="label" id="lbl5"><button type="button" data-open="t5" data-hover><span class="miniDot"></span><span class="t"><b>Task 5</b><i>Plan</i></span></button></div>
+
+  <div class="backdrop" id="backdrop"></div>
+
+  <!-- TASK PANEL -->
+  <div class="panel" id="panel" role="dialog" aria-modal="true" aria-label="Task content" data-hover>
+    <div class="panelHeader" data-hover>
+      <div class="left">
+        <div class="k" id="panelK">FILE: STK-026</div>
+        <h2 id="panelTitle">—</h2>
+      </div>
+      <button class="x" id="panelClose" type="button" aria-label="Close" data-hover>✕</button>
+    </div>
+    <div class="panelBody" id="panelBody"></div>
+  </div>
+
+  <!-- GUIDE PANEL -->
+  <div class="panel" id="guide" role="dialog" aria-modal="true" aria-label="Guide" data-hover>
+    <div class="panelHeader" data-hover>
+      <div class="left">
+        <div class="k" id="guideK">GUIDE • NAVIGATION</div>
+        <h2 id="guideTitle">How to use this dossier</h2>
+      </div>
+      <button class="x" id="guideClose" type="button" aria-label="Close guide" data-hover>✕</button>
+    </div>
+    <div class="panelBody" id="guideBody">
+      <p class="p muted">
+        Think of this as a signal network: the globe is the hub, tasks are nodes, routes are transmissions.
+      </p>
+      <div class="hr"></div>
+
+      <details open>
+        <summary data-hover>Core controls</summary>
+        <p>
+          <b>Drag</b> to rotate the globe. <b>Scroll</b> to zoom.
+          <br><b>Click a node</b> (or a floating label) to transmit that task into the glass panel.
+        </p>
+        <div class="chips">
+          <span class="chip">DRAG</span><span class="chip">SCROLL</span><span class="chip">CLICK</span>
+        </div>
+      </details>
+
+      <details>
+        <summary data-hover>Keyboard</summary>
+        <p>
+          <b>1–5</b> → transmit Tasks 1–5
+          <br><b>H</b> / <b>?</b> → open/close this guide
+          <br><b>Esc</b> → close panels
+        </p>
+        <div class="chips">
+          <span class="chip">1–5</span><span class="chip">H / ?</span><span class="chip">ESC</span>
+        </div>
+      </details>
+
+      <details>
+        <summary data-hover>What the animation means</summary>
+        <p>
+          Opening a task draws <b>routes</b> around the globe. <b>Packets</b> travel the arc.
+          On arrival, the packet bursts into <b>glass shards</b> and the title <b>decodes</b>.
+        </p>
+        <div class="chips">
+          <span class="chip">ROUTES</span><span class="chip">PACKETS</span><span class="chip">SHARDS</span><span class="chip">DECODE</span>
+        </div>
+      </details>
+
+      <div class="hr"></div>
+      <p class="p">
+        Tip: hover interactive elements — the liquid glass cursor will “stick” and glow.
+      </p>
+    </div>
+  </div>
+
+  <div class="fail" id="fail">
+    <div class="card">
+      <h3>Not loading (module / WebGL blocked)</h3>
+      <p>
+        This page uses an ES-module import for Three.js. If you opened it as <b>file://</b> (Safari),
+        the import can be blocked and everything stops.
+      </p>
+      <code>Fix:
+cd your-folder
+python3 -m http.server 5173
+open http://localhost:5173</code>
+    </div>
+  </div>
+
+  <script type="module">
+    document.body.classList.add("js-ready");
+
+    let THREE;
+    try {
+      THREE = await import("https://unpkg.com/three@0.160.0/build/three.module.js");
+    } catch (e) {
+      console.error(e);
+      document.getElementById("fail").classList.add("on");
+      throw e;
+    }
+
+    // ---------- DOM ----------
+    const $ = (id)=>document.getElementById(id);
+
+    const panel = $("panel"), panelTitle = $("panelTitle"), panelBody = $("panelBody"), panelK = $("panelK");
+    const panelClose = $("panelClose");
+
+    const guide = $("guide"), guideClose = $("guideClose");
+
+    const backdrop = $("backdrop");
+    const hudMode = $("hudMode"), hudHint = $("hudHint");
+
+    const btnReset = $("btnReset"), btnAuto = $("btnAuto"), btnGuide = $("btnGuide");
+
+    const cursorBlob = document.querySelector(".cursorBlob");
+    const cursorDot  = document.querySelector(".cursorDot");
+
+    const labels = [
+      { el: $("lbl1"), key:"t1" },
+      { el: $("lbl2"), key:"t2" },
+      { el: $("lbl3"), key:"t3" },
+      { el: $("lbl4"), key:"t4" },
+      { el: $("lbl5"), key:"t5" },
+    ];
+
+    // ---------- cursor follower (liquid glass) ----------
+    let mx = innerWidth/2, my = innerHeight/2;
+    let bx = mx, by = my;
+    let tx = mx, ty = my;
+    let isHovering = false;
+
+    function setHoverGlow(x,y){
+      document.documentElement.style.setProperty("--hx", (x/innerWidth*100).toFixed(2) + "%");
+      document.documentElement.style.setProperty("--hy", (y/innerHeight*100).toFixed(2) + "%");
+    }
+    function lerp(a,b,t){ return a+(b-a)*t; }
+
+    addEventListener("mousemove", (e)=>{
+      mx = e.clientX; my = e.clientY;
+      setHoverGlow(mx,my);
+
+      const el = document.elementFromPoint(mx,my);
+
+      const panelOpen = panel.classList.contains("on");
+      const guideOpen = guide.classList.contains("on");
+      const anyModal = panelOpen || guideOpen;
+
+      let hoverEl = null;
+
+      if (!anyModal) {
+        hoverEl = el && (el.closest("button") || el.closest("a") || el.closest("summary") || el.closest("[data-open]") || el.closest("#btnReset") || el.closest("#btnAuto") || el.closest("#btnGuide"));
+      } else {
+        hoverEl = el && (el.closest("#panelClose") || el.closest("#guideClose") || el.closest("summary") || el.closest("button") || el.closest("a"));
+      }
+
+      if (hoverEl){
+        const r = hoverEl.getBoundingClientRect();
+        tx = r.left + r.width/2;
+        ty = r.top + r.height/2;
+        isHovering = true;
+        cursorBlob.classList.add("big");
+      } else {
+        tx = mx; ty = my;
+        isHovering = false;
+        cursorBlob.classList.remove("big");
+      }
+    }, { passive:true });
+
+    (function cursorLoop(){
+      const k = isHovering ? 0.10 : 0.22;
+      bx = lerp(bx, tx, k);
+      by = lerp(by, ty, k);
+      cursorBlob.style.left = bx + "px";
+      cursorBlob.style.top  = by + "px";
+      cursorDot.style.left = mx + "px";
+      cursorDot.style.top  = my + "px";
+      requestAnimationFrame(cursorLoop);
+    })();
+
+    // ---------- content ----------
+    const CONTENT = {
+      t1: { title:"Task 1 — Submission Memorandum", k:"ENDS 101 • I-3 (PBP) • FILE: STK-026", html: `
+        <p class="p muted">Date: February 12, 2026 • To: Dr. V. • From: Soham Takuri • Myers-Briggs: INTJ</p>
+        <div class="hr"></div>
+        <p class="p">This assignment is submitted as a single interactive “dossier” experience. Each required task is separated into a labeled module for grading clarity.</p>
+        <p class="p"><b>Subject:</b> Submission I-3 (PBP)</p>
+        <p class="p"><b>Honor Code:</b> “I am submitting this assignment under the Aggie Honor Code – An Aggie does not lie, cheat or steal or tolerate those who do.”</p>
+        <div class="chips"><span class="chip">PROOF &gt; CLAIMS</span><span class="chip">CLEAR SECTIONS</span><span class="chip">INTERACTIVE</span></div>` },
+      t2: { title:"Task 2 — 30 Personal Branding Questions", k:"DOSSIER ENTRIES • EXPAND TO READ", html: `
+        <p class="p muted">Each question is an entry. Expand only what you need.</p>
+        <details open><summary data-hover>1) Full name and preferred address</summary><p>My name is Soham Takuri. I prefer Soham.</p></details>
+        <details><summary data-hover>2) Image of you</summary><p><i>Insert a photo or a symbolic image here.</i> (Blueprint / circuitry / minimal portrait.)</p></details>
+       <details>
+  <summary data-hover>3) Major discipline of study or interest</summary>
+  <p>
+    I am studying Computer Science (Engineering) with a heavy interest in artificial intelligence research. </p>
+</details>
+
+<details>
+  <summary data-hover>4) Hats you wear — Who are you?</summary>
+  <p>
+      — I am a builder first. When something interests me, my instinct is to try to create it myself instead of just reading about it. I learn best through the process of making something real and improving it over time.
+      <br><br>
+
+      — I am a researcher in the sense that I spend a lot of time asking questions about how things work. I don’t feel satisfied stopping at a surface-level understanding, and I naturally try to go deeper until things make sense to me.
+      <br><br>
+
+      — I am a student, and I see learning as my primary responsibility right now. I am still early in my journey, and I take seriously the opportunity to develop my thinking and abilities while I am here.
+      <br><br>
+
+      — I am someone driven by curiosity. When I encounter something I don’t understand, I feel a strong need to explore it instead of ignoring it. That curiosity shapes how I approach both school and the projects I work on outside of it.
+  </p>
+</details>
+<details>
+  <summary data-hover>5) Drivers for taking this course — Why did you enroll?</summary>
+  <p>
+    idea → curiosity<br>
+    I’ve always had ideas, but I never fully understood where good ideas come from or why some become real while others don’t.
+    <br><br>
+
+    curiosity → creation<br>
+    Programming taught me how to create things, but it also made me realize that building is only one part of the process. Choosing what to build is harder.
+    <br><br>
+
+    creation → intention<br>
+    I want to become more intentional about how I approach creation, instead of relying on instinct alone.
+    <br><br>
+
+    intention → understanding<br>
+    I enrolled in this course to understand the design process itself—how ideas form, evolve, and eventually become something real.
+  </p>
+</details>
+
+
+<details>
+  <summary data-hover>6) Expectations for the course — What outcomes will make you happy?</summary>
+  <p>
+    Right now, my process looks like this:<br>
+    idea → attempt → frustration → adjustment → outcome
+    <br><br>
+
+    I want to leave this course with something more intentional:<br>
+    observation → idea → refinement → decision → outcome
+    <br><br>
+
+    I want to understand not just how to create things, but how to guide ideas from the beginning.
+    <br><br>
+
+    I want to become more comfortable working with uncertainty, where there is no clear answer.
+    <br><br>
+
+    If I leave this course thinking differently than I do now, then it will have been worth it.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>7) Individual Competencies/Capabilities — What sets you apart?</summary>
+  <p>
+    — I have the ability to sit with problems longer than most people. When something doesn’t make sense to me, I don’t move on easily. I keep thinking about it in the background, sometimes for days, until I understand it. That persistence allows me to reach deeper understanding instead of settling for surface-level answers.
+    <br><br>
+
+    — I naturally learn by creating. Instead of only consuming information, I try to turn ideas into something real, even if I don’t fully know how at the beginning. The process of struggling through creation teaches me things that passive learning never could.
+    <br><br>
+
+    — I carry a strong sense of responsibility because of the sacrifices my parents made to give me the opportunities I have today. They gave up stability, comfort, and certainty so I could have access to education and possibility. Knowing that has created a kind of motivation in me that doesn’t turn off. It pushes me to take my growth seriously and not waste the opportunities I’ve been given.
+    <br><br>
+
+    — I am comfortable not knowing things. I don’t see confusion as a weakness, but as the starting point of understanding. This allows me to approach unfamiliar problems without avoiding them.
+    <br><br>
+
+    — I constantly reflect on how I think, not just what I think. I try to understand my own decision-making process so that I can improve it over time instead of repeating the same patterns unconsciously.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>8) TIBs — This I Believe</summary>
+  <p>
+    — I believe that curiosity is one of the most important forces in a person’s life. It is what drives people to explore, question, and create instead of simply accepting things as they are.
+    <br><br>
+
+    — I believe that progress comes from discomfort. The moments where I feel confused or challenged are usually the moments where I grow the most.
+    <br><br>
+
+    — I believe that people are capable of far more than they initially think, but most never test their limits long enough to find out.
+    <br><br>
+
+    — I believe that creation is one of the most meaningful things a person can do. Turning an idea into something real is a way of leaving a trace of your thinking in the world.
+    <br><br>
+
+    — I believe that who you become is shaped by what you choose to pursue consistently, not by a single decision, but by repeated actions over time.
+  </p>
+</details>
+<details>
+  <summary data-hover>9) Happiness — What makes you happy?</summary>
+  <p>
+    — I feel happy when I cook something that has never been made before, at least by me, and it turns out exactly the way I imagined. There’s a very specific satisfaction in going from an idea in my head, to carefully executing it, and then tasting something that matches the vision I had from the beginning. It makes me feel like imagination can become reality through intention and effort.
+    <br><br>
+
+    — I feel happy when I see progress in myself in the gym. It reminds me that change doesn’t happen all at once, but through consistent effort over time. Seeing myself become stronger reinforces the idea that improvement is something I can control through discipline and persistence.
+    <br><br>
+
+    — I feel happy when I finally understand something that confused me before. There’s a specific moment where something clicks, and something that once felt impossible becomes clear. It makes me feel like I’ve expanded my limits.
+    <br><br>
+
+    — I feel happy when I build something from nothing and see it work. It reminds me that ideas don’t have to stay ideas, and that I have the ability to turn thoughts into reality.
+    <br><br>
+
+    — I feel happy when I reflect on how far I’ve come, especially knowing the sacrifices my family made to give me these opportunities. It gives meaning to the effort I put in every day.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>10) Sadness — What makes you unhappy or sad?</summary>
+  <p>
+    — I feel unhappy when I know I am capable of more but am not fully reaching that level. It creates a sense of internal frustration because I know there is more potential that has not yet been realized.
+    <br><br>
+
+    — I feel sad when I waste time on things that don’t contribute to my growth. Time feels limited, and I don’t like the feeling of letting it pass without intention.
+    <br><br>
+
+    — I feel sad when I see people give up on themselves or accept limits that are not truly fixed. It reminds me how easy it is for potential to go unrealized.
+    <br><br>
+
+    — I feel unhappy when I lose momentum or feel stagnant. Progress, even slow progress, gives me energy, and the absence of it feels discouraging.
+    <br><br>
+
+    — I feel sad when I think about how much effort and sacrifice went into giving me opportunities, and I question whether I am fully honoring that through my actions.
+  </p>
+</details>
+<details>
+  <summary data-hover>11) Anger — What makes you angry?</summary>
+  <p>
+    — I feel angry when I see complacency, especially when someone has the ability to improve but chooses not to act. It feels like watching potential go unused.
+    <br><br>
+
+    — I feel angry when people make strong claims without testing or questioning them. I believe ideas should be examined, not accepted blindly.
+    <br><br>
+
+    — I feel angry when effort is dismissed or undervalued. I know how much discipline it takes to build something meaningful, and it frustrates me when that process is not respected.
+    <br><br>
+
+    — I feel angry when fear prevents people from pursuing things they care about. It’s difficult to watch someone limit themselves before even trying.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>12) Fear — What makes you scared?</summary>
+  <p>
+    — I am afraid of becoming passive. I never want to reach a point where I stop questioning, exploring, or pushing myself to grow.
+    <br><br>
+
+    — I am afraid of becoming too comfortable. Comfort can slowly replace curiosity without you realizing it.
+    <br><br>
+
+    — I am afraid of wasting the opportunities I have been given, especially knowing how much sacrifice made them possible.
+    <br><br>
+
+    — I am afraid of reaching the end of my life and realizing I did not fully test my own limits.
+  </p>
+</details>
+<details>
+  <summary data-hover>13) Annoyances — What things annoy or bother you?</summary>
+  <p>
+    — Slow feedback loops frustrate me. When it takes too long to know whether something works or not, it slows down learning and progress.
+    <br><br>
+
+    — Surface-level thinking bothers me, especially when people accept explanations without questioning them or trying to understand the deeper reasoning.
+    <br><br>
+
+    — Inefficiency annoys me, particularly when something could be improved with intention and effort but remains unchanged out of habit.
+    <br><br>
+
+    — When people dismiss ideas too quickly without exploring their potential, it bothers me because it prevents discovery and growth.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>14) Dislikes — What things do you dislike or hate?</summary>
+  <p>
+    — I dislike performative work, where the focus is on appearing productive rather than actually creating something meaningful.
+    <br><br>
+
+    — Empty buzzwords frustrate me, especially when they replace real thinking or understanding.
+    <br><br>
+
+    — I dislike environments that discourage curiosity or questioning, because they limit growth and creativity.
+    <br><br>
+
+    — I dislike wasting time on things that do not contribute to progress, learning, or creation.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>15) Likes — What things do you like or love?</summary>
+  <p>
+    — I enjoy working on hard problems that force me to think deeply and push beyond my current limits.
+    <br><br>
+
+    — I appreciate elegant solutions, especially when something complex is reduced to something simple and clear.
+    <br><br>
+
+    — I like creating things that have measurable impact, where I can see the direct result of effort and intention.
+    <br><br>
+
+    — I enjoy the process of refining something over time until it becomes closer to what I originally imagined.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>16) Inspiration — What things inspire you?</summary>
+  <p>
+    — I am inspired by people who overcome severe physical and mentallimitations and still pursue excellence, like a paralyzed veteran becoming a Paralympic athlete. It shows that determination can redefine what seems possible.
+    <br><br>
+
+    — I am inspired by polymaths—people who develop real ability across multiple disciplines. Their range shows that creativity often comes from connecting ideas that don’t normally belong together.
+    <br><br>
+
+    — I am inspired by scientific and intellectual breakthroughs that permanently change how people understand the world. They remind me that reality still contains unknowns waiting to be discovered.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>17) Accomplishments — What are your biggest accomplishments to date?</summary>
+  <p>
+    — Publishing my AI research paper at NAACL was one of my most meaningful accomplishments because it was the first time I contributed something original to a field I care about deeply. Seeing my work accepted and recognized showed me that I could participate in advancing knowledge, not just learning existing ideas.
+    <br><br>
+
+    — I built an AI-powered tutoring tool that hundreds of students have used to study more effectively. Watching something I created become part of other students’ daily academic lives made creation feel real and impactful.
+    <br><br>
+
+    — I built an automated trading bot from scratch that could monitor markets, make decisions, and execute trades without manual intervention. This forced me to think carefully about reliability, precision, and anticipating failure before it happens.
+    <br><br>
+
+    — Teaching myself programming and artificial intelligence independently has been one of my most important accomplishments. It showed me that I am capable of entering a field without prior expertise and developing real ability through persistence.
+    <br><br>
+
+    — Getting into Texas A&M as an Engineering student represented the result of years of effort and discipline, and it gave me access to opportunities that I continue to build on.
+  </p>
+</details>
+<details>
+  <summary data-hover>18) BHAGs — What are your biggest goals in life?</summary>
+  <p>
+    — I want to build products that fundamentally improve how people think, learn, and create, and that continue to have impact long after they are created.
+    <br><br>
+
+    — I want to develop the ability to turn abstract ideas into reality consistently, instead of relying on rare moments of inspiration.
+    <br><br>
+
+    — I want to build companies around ideas I genuinely believe in, where creation is driven by curiosity and purpose rather than obligation.
+    <br><br>
+
+    — I want to reach a point where I am capable of solving problems that currently feel beyond my abilities.
+    <br><br>
+
+    — I want to become someone whose work meaningfully expands what others believe is possible.
+  </p>
+</details>
+<details>
+  <summary data-hover>19) Enhancing your life — What would you enhance to make your life better?</summary>
+  <p>
+    — I would increase my access to compute and technical resources, because having fewer constraints would allow me to explore ideas faster and test more ambitious concepts.
+    <br><br>
+
+    — I would surround myself with mentors who have already built meaningful things. Learning directly from people who have gone further than I have would accelerate my growth.
+    <br><br>
+
+    — I would have uninterrupted time to focus deeply on creation, without constant fragmentation or distraction. Most meaningful work requires sustained attention.
+    <br><br>
+
+    — I would improve my ability to collaborate with others who share the same level of curiosity and intensity, because the right environment amplifies what is possible.
+    <br><br>
+
+    — I would strengthen my ability to execute consistently, so that ideas move from imagination to reality without delay.
+  </p>
+</details>
+<details>
+  <summary data-hover>20) Genie wishes — What would you wish for?</summary>
+  <p>
+    — I would wish for the ability to learn new concepts faster, so that I could explore more ideas within the limited time available.
+    <br><br>
+
+    — I would wish for stronger and more consistent focus, so that I could work without internal resistance or distraction.
+    <br><br>
+
+    — I would wish for sustained curiosity, so that I never lose the drive to explore and question things deeply.
+    <br><br>
+
+    — I would wish for clarity of thought, so that I can recognize meaningful ideas and pursue them confidently.
+    <br><br>
+
+    — I would wish for the ability to execute ideas as clearly as I imagine them, without losing fidelity between vision and reality.
+  </p>
+</details>
+<details>
+  <summary data-hover>21) Magic wand changes — What would you change?</summary>
+  <p>
+    — I would remove the fear of failure that prevents people from attempting things they are capable of. Many limits exist not because of ability, but because of hesitation.
+    <br><br>
+
+    — I would change education so that it rewards curiosity and exploration instead of memorization and compliance.
+    <br><br>
+
+    — I would give people the ability to see their own potential clearly, without the distortion of self-doubt or comparison.
+    <br><br>
+
+    — I would slow down how quickly people become mentally passive, so that curiosity and engagement remain present throughout their lives.
+    <br><br>
+
+    — I would make people more aware of how limited time is, so they live more intentionally instead of drifting unconsciously.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>22) If you couldn’t fail — What would you do?</summary>
+  <p>
+    — I would work on advancing artificial intelligence so it can help people learn faster and solve problems they currently cannot solve alone. For example, I would build tools that can teach anyone complex subjects at the level of a world-class expert, regardless of their background.
+    <br><br>
+
+    — I would attempt to solve scientific and technical problems that currently have no clear solution, even if progress takes years. I would rather spend my time pushing the boundary of what is known than optimizing something that is already understood.
+    <br><br>
+
+    — I would build tools that remove barriers between ideas and execution, so that someone with curiosity but no resources could still create meaningful things.
+    <br><br>
+
+    — I would collaborate with people who are working on difficult, high-impact problems, contributing my effort to projects that expand what humanity is capable of.
+    <br><br>
+
+    — I would dedicate my life to creation and discovery, knowing that failure would not prevent me from continuing to push forward.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>23) If actions had no consequences — What would you do?</summary>
+  <p>
+    — I would run ambitious experiments without hesitation, building prototypes of ideas immediately instead of overthinking whether they would succeed or fail. I would treat every idea as something to test, not just something to consider.
+    <br><br>
+
+    — I would pursue problems purely out of curiosity, even if they had no immediate practical value, simply to understand how far I could push my own ability.
+    <br><br>
+
+    — I would explore the limits of what I am capable of creating, without restricting myself based on fear of failure or judgment.
+  </p>
+</details>
+<details>
+  <summary data-hover>24) Weird claim to fame — What unusual things have you done?</summary>
+  <p>
+    — I sometimes replay moments in my head and analyze them from multiple perspectives, trying to understand how small decisions led to specific outcomes. It makes me more aware of how subtle choices shape reality.
+    <br><br>
+
+    — I tend to imagine future versions of myself and work backward from that point, thinking about what that version of me would have needed to do differently.
+    <br><br>
+
+    — I can become deeply absorbed in trying to understand one specific question, to the point where I lose track of time completely.
+    <br><br>
+
+    — I notice patterns in things most people overlook, especially in how people behave, how tools are designed, and how environments influence decisions.
+      </p>
+</details>
+<details>
+  <summary data-hover>25) Memorable places — What are the most memorable places you have visited?</summary>
+  <p>
+    — My desk late at night, when everything is quiet and uninterrupted. Those are the moments where I’ve had some of my clearest thoughts and made meaningful progress on things that mattered to me.
+    <br><br>
+
+    — The gym, especially during difficult workouts, because it’s one of the few places where effort and progress are directly connected and measurable.
+    <br><br>
+
+    — The kitchen when I’m experimenting with something new, where imagination becomes something tangible and sensory.
+    <br><br>
+</p>
+</details>
+<details>
+  <summary data-hover>26) Passions — What are your passions?</summary>
+  <p>
+    — I am passionate about cooking, especially the process of imagining something that doesn’t exist yet and bringing it into reality through careful execution. It’s one of the few activities where creativity and precision meet directly.
+    <br><br>
+
+    — I am passionate about physical training, because it provides honest feedback. Progress in the gym cannot be faked, and improvement comes only through consistency.
+    <br><br>
+
+    — I am passionate about understanding people, especially what drives them, what they fear, and what shapes their decisions.
+    <br><br>
+
+    — I am passionate about environments that allow uninterrupted thinking, where I can focus deeply without distraction.
+    <br><br>
+
+    — I am passionate about moments of clarity, when something that was previously confusing suddenly makes sense.
+  </p>
+</details>
+<details>
+  <summary data-hover>27) Dreams — What are your dreams?</summary>
+  <p>
+    — I want to look back on my life and feel that I fully explored my potential instead of staying within what was comfortable.
+    <br><br>
+
+    — I want to build a relationship where both people grow alongside each other, not becoming stagnant, but continuously evolving together.
+    <br><br>
+
+    — I want to live a life where my time is shaped by intention rather than obligation, where I am present in the things I choose to pursue.
+    <br><br>
+
+    — I want to become someone who remains mentally alive and curious, even decades from now, without losing the drive to learn and explore.
+    <br><br>
+
+    — I want to reach a point where I feel at peace with the effort I gave, knowing I did not avoid difficult paths out of fear.
+  </p>
+</details>
+
+<details>
+  <summary data-hover>28) Bucket list — What things do you want to do before you die?</summary>
+  <p>
+    — I want to experience the moment where something I built reaches people far beyond my immediate environment, and I can see its impact in the real world.
+    <br><br>
+
+    — I want to travel alone to a place completely unfamiliar to me, where I have to rely entirely on my own judgment and adaptability.
+    <br><br>
+
+    — I want to have a conversation with someone I deeply respect, where I can ask them the questions I’ve thought about for years.
+    <br><br>
+
+    — I want to reach a level of mastery in several areas where I know, without doubt, that I earned it through years of effort.
+    <br><br>
+
+  </p>
+</details>
+<details>
+  <summary data-hover>29) Soundtrack — What songs would be in the movie of your life?</summary>
+  <p>
+    — "Time" — Hans Zimmer. 
+    <br><br>
+
+    — "Experience" — Ludovico Einaudi. 
+    <br><br>
+
+    — "Strobe" — deadmau5. 
+     <br><br>
+
+    — "DNA." — Kendrick Lamar. 
+     <br><br>
+
+    — "Outro" — M83. 
+     </p>
+</details>
+        <details>
+  <summary data-hover>30) Legacy — What would your epitaph say?</summary>
+  <p>
+    — I truly don’t know yet. I believe legacy is something earned over time, not something declared in advance.
+  </p>
+</details>
+` },
+      t3: { title:"Task 3 — Essence Questions + Rationale", k:"ESSENCE LOOP", html: `
+  <p class="p"><b>Selected question numbers:</b> 4, 7, 16, 17, 18, 22, 26, 27, 28, 30</p>
+  <div class="hr"></div>
+
+  <p class="p">
+    These define my essence because they reconstruct the loop of who I am:
+    <b>identity → capability → inspiration → proof → direction → boldness → passion → vision → commitments → legacy.</b>
+  </p>
+
+  <p class="p">
+    <b>4 (Identity)</b> establishes my baseline: not a title, but the way I operate and what I naturally return to.
+    <b>7 (Capability)</b> explains why that identity isn’t just an idea—what traits and habits make it real in practice.
+    <b>16 (Inspiration)</b> shows what pulls me forward and what kinds of people and moments I respect enough to model.
+  </p>
+
+  <p class="p">
+    <b>17 (Proof)</b> matters because it’s evidence. It shows I don’t just think about things—I’ve already crossed real thresholds.
+    <b>18 (Direction)</b> captures where I’m aiming long-term and what I consider worth building a life around.
+    <b>22 (Boldness)</b> exposes my highest setting: what I would attempt if fear and failure weren’t constraints.
+  </p>
+
+  <p class="p">
+    <b>26 (Passion)</b> separates what I genuinely enjoy from what I do for outcomes—it shows what energizes me when no one is watching.
+    <b>27 (Vision)</b> is more personal than goals; it reflects the kind of life and relationships I actually want to live inside of.
+    <b>28 (Commitments)</b> turns that vision into concrete experiences I want to earn, not just imagine.
+    <b>30 (Legacy)</b> closes the loop by forcing the hardest question: what all of this is ultimately in service of, even if the answer is still forming.
+  </p>
+
+  <div class="chips">
+    <span class="chip">IDENTITY</span>
+    <span class="chip">CAPABILITY</span>
+    <span class="chip">INSPIRATION</span>
+    <span class="chip">PROOF</span>
+    <span class="chip">DIRECTION</span>
+    <span class="chip">BOLDNESS</span>
+    <span class="chip">PASSION</span>
+    <span class="chip">VISION</span>
+    <span class="chip">COMMITMENTS</span>
+    <span class="chip">LEGACY</span>
+  </div>` },
+ t4: { title:"Task 4 — Context Where I Want to Stand Out", k:"TARGET ARENA", html: `
+  <p class="p"><b>Context:</b> Seeking investors and collaborators for a venture I’m building.</p>
+  <div class="hr"></div>
+
+  <p class="p">
+    In that arena, I want to stand out as someone who turns uncertainty into traction. A lot of people can pitch an idea.
+    Fewer people can show evidence that the idea survives contact with reality.
+  </p>
+
+  <p class="p">
+    For me, standing out means <b>proof, clarity, and momentum</b>:
+    proof that I can build and ship, clarity about what problem I’m solving and for whom, and momentum that signals this is already moving forward
+    without needing permission or perfect conditions.
+  </p>
+
+  <p class="p">
+    I want investors and collaborators to feel one thing after talking to me: this isn’t a “someday” project.
+    It’s already being built, tested, and refined—so joining in is stepping onto something that’s already in motion.
+  </p>
+
+  <div class="chips">
+    <span class="chip">PROOF</span>
+    <span class="chip">CLARITY</span>
+    <span class="chip">MOMENTUM</span>
+    <span class="chip">TRACTION</span>
+    <span class="chip">TRUST</span>
+  </div>` },
+t5: { title:"Task 5 — What / How / With What", k:"STAND-OUT STRATEGY", html: `
+  <p class="p">
+    <b>WHAT</b> — I will stand out by showing things that already exist, not just things I intend to build. This includes working prototypes,
+    live demonstrations, and measurable usage or traction. A functional demo communicates more clearly than any explanation because it proves
+    that an idea has survived real implementation.
+  </p>
+
+  <p class="p">
+    <b>HOW</b> — I will present ideas through experience, not abstraction. I will begin with a live demonstration so the outcome is visible immediately,
+    then explain the story behind it: the problem, the reasoning that led to the solution, and the underlying technical decisions. I will support this
+    with concrete metrics that show progress, improvement, or adoption.
+  </p>
+
+  <p class="p">
+    <b>WITH WHAT</b> — I will rely on fast iteration, direct feedback, and disciplined execution. This includes access to computation, real-world data,
+    and collaboration with people who move quickly and think critically. Most importantly, I will leverage the ability to build and test ideas continuously,
+    so that progress compounds over time instead of waiting for perfect conditions.
+  </p>
+
+  <div class="chips">
+    <span class="chip">PROTOTYPES</span>
+    <span class="chip">DEMOS</span>
+    <span class="chip">TRACTION</span>
+    <span class="chip">ITERATION</span>
+    <span class="chip">EXECUTION</span>
+  </div>`  },
+    };
+
+
+    // ---------- utils ----------
+    const SCRAMBLE = "░▒▓<>/\\|—_+=*#?0123456789";
+    function decodeTitle(el, finalText, ms=620){
+      const start = performance.now();
+      const L = finalText.length;
+      function frame(now){
+        const t = Math.min(1, (now - start) / ms);
+        const reveal = Math.floor(t * L);
+        let out = "";
+        for (let i=0;i<L;i++){
+          out += (i < reveal) ? finalText[i] : SCRAMBLE[(Math.random()*SCRAMBLE.length)|0];
+        }
+        el.textContent = out;
+        if (t < 1) requestAnimationFrame(frame);
+        else el.textContent = finalText;
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function flyShards(fromX, fromY, toEl){
+      const r = toEl.getBoundingClientRect();
+      const toX = r.left + Math.min(r.width-16, 180);
+      const toY = r.top + r.height/2;
+
+      const count = 26;
+      for (let i=0;i<count;i++){
+        const s = document.createElement("div");
+        s.className = "shard";
+        document.body.appendChild(s);
+
+        const a = Math.random()*Math.PI*2;
+        const burstR = 12 + Math.random()*42;
+        const bx = fromX + Math.cos(a)*burstR;
+        const by = fromY + Math.sin(a)*burstR;
+
+        const endX = toX + (Math.random()*28 - 14);
+        const endY = toY + (Math.random()*18 - 9);
+
+        s.style.left = bx + "px";
+        s.style.top  = by + "px";
+        s.style.width  = (6 + Math.random()*10) + "px";
+        s.style.height = (6 + Math.random()*10) + "px";
+        s.animate([
+          { transform:`translate(-50%,-50%) scale(.65) rotate(${Math.random()*120}deg)`, opacity:0 },
+          { opacity:0.92, offset:0.12 },
+          { transform:`translate(${endX-bx}px, ${endY-by}px) scale(.55) rotate(${420+Math.random()*320}deg)`, opacity:0 }
+        ], { duration: 520 + Math.random()*260, delay: Math.random()*90, easing:"cubic-bezier(.2,.9,.2,1)", fill:"forwards" })
+        .onfinish = ()=> s.remove();
+      }
+    }
+
+    // ---------- MODALS ----------
+    function anyModalOpen(){ return panel.classList.contains("on") || guide.classList.contains("on"); }
+
+    function closePanel(){
+      panel.classList.remove("on");
+      if (!guide.classList.contains("on")) {
+        backdrop.classList.remove("on");
+        hudHint.textContent = "CLICK A NODE";
+      } else {
+        hudHint.textContent = "READ GUIDE";
+      }
+    }
+    panelClose.addEventListener("click", closePanel);
+
+    function closeGuide(){
+      guide.classList.remove("on");
+      localStorage.setItem("pbpGuideSeen", "1");
+      if (!panel.classList.contains("on")) {
+        backdrop.classList.remove("on");
+        hudHint.textContent = "CLICK A NODE";
+      } else {
+        hudHint.textContent = "ESC TO CLOSE";
+      }
+    }
+    guideClose.addEventListener("click", closeGuide);
+
+    backdrop.addEventListener("click", ()=>{
+      if (guide.classList.contains("on") && !localStorage.getItem("pbpGuideSeen")) return;
+      closePanel();
+      if (localStorage.getItem("pbpGuideSeen")) closeGuide();
+    });
+
+    function openGuide(){
+      closePanel();
+      guide.classList.add("on");
+      backdrop.classList.add("on");
+      hudHint.textContent = "READ GUIDE";
+      decodeTitle($("guideTitle"), "How to use this dossier", 520);
+    }
+
+    function openPanelWithDecode(key, fromScreen){
+      if (guide.classList.contains("on") && !localStorage.getItem("pbpGuideSeen")) return;
+
+      const c = CONTENT[key];
+      if (!c) return;
+
+      if (guide.classList.contains("on")) closeGuide();
+
+      panelK.textContent = c.k;
+      panelBody.innerHTML = c.html;
+      panel.classList.add("on");
+      backdrop.classList.add("on");
+      hudHint.textContent = "ESC TO CLOSE";
+
+      panelTitle.textContent = "";
+      decodeTitle(panelTitle, c.title, 650);
+      if (fromScreen) flyShards(fromScreen.x, fromScreen.y, panelTitle);
+    }
+
+    btnGuide.addEventListener("click", ()=>{
+      if (guide.classList.contains("on")) closeGuide();
+      else openGuide();
+    });
+
+    addEventListener("keydown", (e)=>{
+      const k = e.key;
+      if (k === "Escape") {
+        if (guide.classList.contains("on")) closeGuide();
+        closePanel();
+      }
+      if (k.toLowerCase() === "h" || k === "?") {
+        if (guide.classList.contains("on")) closeGuide();
+        else openGuide();
+      }
+      if (panel.classList.contains("on") || guide.classList.contains("on")) return;
+      if (k === "1") triggerTask("t1");
+      if (k === "2") triggerTask("t2");
+      if (k === "3") triggerTask("t3");
+      if (k === "4") triggerTask("t4");
+      if (k === "5") triggerTask("t5");
+    });
+
+    if (!localStorage.getItem("pbpGuideSeen")) {
+      guide.classList.add("on");
+      backdrop.classList.add("on");
+      hudHint.textContent = "READ GUIDE";
+      decodeTitle($("guideTitle"), "How to use this dossier", 520);
+    }
+
+    // ---------- THREE setup ----------
+    const mount = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    mount.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050712, 0.055);
+
+    const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 200);
+    camera.position.set(0, 0.2, 8.4);
+
+    const keyLight = new THREE.DirectionalLight(0x9fb7ff, 1.05);
+    keyLight.position.set(5, 6, 6);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xd7c1ff, 0.55);
+    fillLight.position.set(-6, 2, 7);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.PointLight(0x9bffd7, 0.95, 40);
+    rimLight.position.set(-4, -2, -2);
+    scene.add(rimLight);
+
+    const glowLight = new THREE.PointLight(0x7aa2ff, 0.55, 50);
+    glowLight.position.set(3, 0, 2);
+    scene.add(glowLight);
+
+    // stars
+    const starCount = 2400;
+    const starGeo = new THREE.BufferGeometry();
+    const starPos = new Float32Array(starCount * 3);
+    for (let i=0;i<starCount;i++){
+      const r = 70 * Math.random();
+      const th = Math.random() * Math.PI * 2;
+      const y = (Math.random() - 0.5) * 34;
+      starPos[i*3+0] = Math.cos(th) * r;
+      starPos[i*3+1] = y;
+      starPos[i*3+2] = Math.sin(th) * r - 35;
+    }
+    starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ size:0.028, color:0xEAF0FF, transparent:true, opacity:0.62 }));
+    scene.add(stars);
+
+   // ===== CURSOR-RESPONSIVE LIQUID PARTICLE FIELD (REPLACE WHOLE BLOCK) =====
+const field = new THREE.Group();
+field.position.z = -2.4; // closer, still behind globe
+scene.add(field);
+
+const FIELD_N = 1600;
+
+// field bounds (in field-local space)
+const FIELD_W = 18;
+const FIELD_H = 10;
+const FIELD_D = 6;
+
+function rand(a,b){ return a + Math.random()*(b-a); }
+
+// positions + velocities
+const fieldGeo = new THREE.BufferGeometry();
+const fieldPos = new Float32Array(FIELD_N * 3);
+const fieldVel = new Float32Array(FIELD_N * 3);
+const fieldSeed = new Float32Array(FIELD_N);
+
+// sizes for a “liquid droplet” variation
+const fieldSize = new Float32Array(FIELD_N);
+const fieldStretch = new Float32Array(FIELD_N);
+for (let i=0;i<FIELD_N;i++) fieldStretch[i] = 0.0;
+fieldGeo.setAttribute("aStretch", new THREE.BufferAttribute(fieldStretch, 1));
+
+for (let i=0;i<FIELD_N;i++){
+  const x = rand(-FIELD_W/2, FIELD_W/2);
+  const y = rand(-FIELD_H/2, FIELD_H/2);
+  const z = rand(-FIELD_D/2, FIELD_D/2);
+
+  fieldPos[i*3+0]=x;
+  fieldPos[i*3+1]=y;
+  fieldPos[i*3+2]=z;
+
+  // start almost still (smooth)
+  fieldVel[i*3+0]=rand(-0.003,0.003);
+  fieldVel[i*3+1]=rand(-0.003,0.003);
+  fieldVel[i*3+2]=rand(-0.0015,0.0015);
+
+  fieldSeed[i]=Math.random()*1000;
+  fieldSize[i]=rand(6.0, 13.0); // pixel size
+}
+
+fieldGeo.setAttribute("position", new THREE.BufferAttribute(fieldPos, 3));
+fieldGeo.setAttribute("aSize", new THREE.BufferAttribute(fieldSize, 1));
+
+// ---- liquid glass sprite (tiny radial gradient) ----
+function makeDropletSprite(size=128){
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+
+  const cx = size/2, cy = size/2;
+  const r = size*0.48;
+
+  // outer soft glow
+  let grd = g.createRadialGradient(cx - size*0.08, cy - size*0.10, size*0.02, cx, cy, r);
+  grd.addColorStop(0.00, "rgba(255,255,255,0.85)");
+  grd.addColorStop(0.10, "rgba(155,255,215,0.38)");
+  grd.addColorStop(0.32, "rgba(122,162,255,0.18)");
+  grd.addColorStop(0.70, "rgba(122,162,255,0.04)");
+  grd.addColorStop(1.00, "rgba(0,0,0,0)");
+
+  g.fillStyle = grd;
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI*2);
+  g.fill();
+
+  // specular highlight
+  g.globalCompositeOperation = "screen";
+  const h = g.createRadialGradient(cx - size*0.16, cy - size*0.18, 0, cx - size*0.16, cy - size*0.18, size*0.22);
+  h.addColorStop(0.0, "rgba(255,255,255,0.75)");
+  h.addColorStop(1.0, "rgba(255,255,255,0)");
+  g.fillStyle = h;
+  g.beginPath();
+  g.arc(cx - size*0.12, cy - size*0.14, size*0.20, 0, Math.PI*2);
+  g.fill();
+
+  g.globalCompositeOperation = "source-over";
+  return new THREE.CanvasTexture(c);
+}
+
+const dropletTex = makeDropletSprite(128);
+
+// ---- shader points (smooth, liquid, size variation, gentle shimmer) ----
+const fieldMat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  uniforms: {
+    uTex:   { value: dropletTex },
+    uTime:  { value: 0 },
+    uOpacity:{ value: 0.62 }
+  },
+  vertexShader: `
+    attribute float aSize;
+    uniform float uTime;
+    varying float vA;
+    void main() {
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+
+      // subtle shimmer (very slow)
+      float shimmer = 0.20 * sin(uTime * 0.55 + position.x * 0.18 + position.y * 0.22);
+
+      // size in pixels (constant on screen-ish)
+      float s = aSize * (1.0 + shimmer);
+
+      // keep them from blowing up when close
+      s *= clamp(14.0 / (-mv.z), 0.75, 1.35);
+
+      vA = 0.55 + 0.45 * (0.5 + 0.5 * sin(uTime*0.35 + position.z*0.7));
+
+      gl_PointSize = s;
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D uTex;
+    uniform float uOpacity;
+    varying float vA;
+    void main() {
+      vec4 tex = texture2D(uTex, gl_PointCoord);
+
+      // soft edge + bright core already in sprite
+      float alpha = tex.a * uOpacity * vA;
+
+      // kill hard square corners
+      if(alpha < 0.02) discard;
+
+      gl_FragColor = vec4(tex.rgb, alpha);
+    }
+  `
+});
+
+const fieldPts = new THREE.Points(fieldGeo, fieldMat);
+fieldPts.frustumCulled = false;
+field.add(fieldPts);
+
+// ---- cursor -> world point on z-plane for field attraction ----
+const cursorWorld = new THREE.Vector3(0,0,field.position.z);
+const ndc = new THREE.Vector2();
+const ray = new THREE.Raycaster();
+const plane = new THREE.Plane(new THREE.Vector3(0,0,1), -field.position.z);
+
+function updateCursorWorldFromMouse(){
+  ndc.x = (mx / innerWidth) * 2 - 1;
+  ndc.y = -(my / innerHeight) * 2 + 1;
+  ray.setFromCamera(ndc, camera);
+  ray.ray.intersectPlane(plane, cursorWorld);
+  field.worldToLocal(cursorWorld);
+}
+
+function updateField(dt, t){
+  updateCursorWorldFromMouse();
+
+  const posAttr = fieldGeo.attributes.position;
+  const a = posAttr.array;
+
+  // ---- SLOW + SMOOTH parameters ----
+  const attractR = 2.2;
+  const attractR2 = attractR*attractR;
+
+  const pull  = 0.22;   // MUCH weaker than before
+  const swirl = 0.10;   // subtle swirl
+  const damp  = 0.992;  // heavy damping = smooth
+
+  // low-frequency flow (smooth drift)
+  const flow = 0.0019;
+
+  for (let i=0;i<FIELD_N;i++){
+    const ix = i*3;
+    let x = a[ix+0], y = a[ix+1], z = a[ix+2];
+
+    const s = fieldSeed[i];
+
+    // very smooth base motion
+    const fx = flow*Math.sin(t*0.55 + s + y*0.12) + flow*0.7*Math.sin(t*0.40 + x*0.10);
+    const fy = flow*Math.cos(t*0.52 + s*1.2 + x*0.12) + flow*0.7*Math.sin(t*0.44 + y*0.10);
+    const fz = flow*0.55*Math.sin(t*0.45 + s*0.7);
+
+    let vx = fieldVel[ix+0] + fx;
+    let vy = fieldVel[ix+1] + fy;
+    let vz = fieldVel[ix+2] + fz;
+
+    // cursor attraction (soft + slow)
+    const dx = cursorWorld.x - x;
+    const dy = cursorWorld.y - y;
+    const dz = (0 - z) * 0.18;
+    const d2 = dx*dx + dy*dy + dz*dz;
+
+    if (d2 < attractR2){
+      const d = Math.sqrt(d2) + 1e-4;
+      const w = (1 - d/attractR);
+
+      const nx = dx/d, ny = dy/d, nz = dz/d;
+
+      // pull inward
+      const p = pull * w * dt;
+      vx += nx * p;
+      vy += ny * p;
+      vz += nz * (p*0.55);
+
+      // swirl around cursor (tiny)
+      const sx = -ny, sy = nx;
+      vx += sx * (swirl*w*dt);
+      vy += sy * (swirl*w*dt);
+    }
+
+    // integrate
+    x += vx;
+    y += vy;
+    z += vz;
+
+    // wrap in bounds
+    const hw = FIELD_W/2, hh = FIELD_H/2, hd = FIELD_D/2;
+    if (x < -hw) x = hw; else if (x > hw) x = -hw;
+    if (y < -hh) y = hh; else if (y > hh) y = -hh;
+    if (z < -hd) z = hd; else if (z > hd) z = -hd;
+
+    a[ix+0]=x; a[ix+1]=y; a[ix+2]=z;
+
+    // damping (smooth)
+    fieldVel[ix+0]=vx*damp;
+    fieldVel[ix+1]=vy*damp;
+    fieldVel[ix+2]=vz*damp;
+  }
+
+  posAttr.needsUpdate = true;
+  fieldMat.uniforms.uTime.value = t;
+}
+// ===== END LIQUID PARTICLE FIELD =====
+
+    const globeGroup = new THREE.Group();
+    scene.add(globeGroup);
+
+    const GLOBE_R = 1.62;
+    const globe = new THREE.Mesh(
+      new THREE.SphereGeometry(GLOBE_R, 96, 96),
+      new THREE.MeshPhysicalMaterial({
+        color: 0x7aa2ff,
+        metalness: 0.05,
+        roughness: 0.18,
+        transmission: 0.92,
+        thickness: 1.1,
+        ior: 1.35,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.10,
+        reflectivity: 0.55,
+        transparent: true,
+        opacity: 1.0,
+      })
+    );
+    globeGroup.add(globe);
+
+    globeGroup.add(new THREE.Mesh(
+      new THREE.SphereGeometry(1.52, 64, 64),
+      new THREE.MeshStandardMaterial({ color:0x0b1020, emissive:0x213a8a, emissiveIntensity:0.75, transparent:true, opacity:0.28 })
+    ));
+
+    globeGroup.add(new THREE.LineSegments(
+      new THREE.WireframeGeometry(new THREE.SphereGeometry(1.64, 36, 18)),
+      new THREE.LineBasicMaterial({ color: 0x9bffd7, transparent:true, opacity:0.18 })
+    ));
+
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(2.45, 0.02, 10, 320),
+      new THREE.MeshStandardMaterial({ color:0x9bffd7, emissive:0x0f2b24, emissiveIntensity:1.7, transparent:true, opacity:0.55 })
+    );
+    ring.rotation.x = Math.PI/2.4;
+    ring.rotation.z = 0.25;
+    globeGroup.add(ring);
+
+    // nodes
+    const nodeGeo = new THREE.SphereGeometry(0.08, 24, 24);
+    const nodeMatA = new THREE.MeshStandardMaterial({ color:0x7aa2ff, emissive:0x162c66, emissiveIntensity:1.6, roughness:0.25, metalness:0.2 });
+    const nodeMatB = nodeMatA.clone(); nodeMatB.color.setHex(0x9bffd7); nodeMatB.emissive.setHex(0x163b2a);
+
+    const nodeDefs = [
+      { key:"t1", theta: 0.30, mat: nodeMatA },
+      { key:"t2", theta: 1.55, mat: nodeMatB },
+      { key:"t3", theta: 2.70, mat: nodeMatA },
+      { key:"t4", theta: 3.85, mat: nodeMatB },
+      { key:"t5", theta: 5.05, mat: nodeMatA },
+    ];
+    const nodes = nodeDefs.map((d,i)=>{
+      const m = new THREE.Mesh(nodeGeo, d.mat);
+      m.userData = { key:d.key, idx:i };
+      globeGroup.add(m);
+      return m;
+    });
+
+    const routesGroup = new THREE.Group();
+    globeGroup.add(routesGroup);
+
+    const routeMatA = new THREE.LineBasicMaterial({ color:0x7aa2ff, transparent:true, opacity:0.0 });
+    const routeMatB = new THREE.LineBasicMaterial({ color:0x9bffd7, transparent:true, opacity:0.0 });
+
+    const packetGeo = new THREE.SphereGeometry(0.055, 16, 16);
+    const packetMatA = new THREE.MeshStandardMaterial({ color:0x7aa2ff, emissive:0x2a56ff, emissiveIntensity:1.6, roughness:0.25, metalness:0.2, transparent:true, opacity:1 });
+    const packetMatB = new THREE.MeshStandardMaterial({ color:0x9bffd7, emissive:0x1effb1, emissiveIntensity:1.3, roughness:0.3, metalness:0.15, transparent:true, opacity:1 });
+
+    const activeEffects = [];
+    function clearRoutes(){
+      routesGroup.children.forEach(o=>{ if(o.geometry) o.geometry.dispose(); });
+      routesGroup.clear();
+      activeEffects.length = 0;
+    }
+
+    function arcCurve(start, end, lift=0.9){
+      const mid = start.clone().add(end).multiplyScalar(0.5);
+      mid.normalize().multiplyScalar(mid.length() + lift);
+      return new THREE.CatmullRomCurve3([start, mid, end]);
+    }
+    function makeRoute(curve, mat, segments=140){
+      const pts = curve.getPoints(segments);
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      geo.setDrawRange(0, 0);
+      const line = new THREE.Line(geo, mat.clone());
+      line.frustumCulled = false;
+      routesGroup.add(line);
+      return { line, curve };
+    }
+    function spawnPacket(curve, mat, delay=0, speed=0.55){
+      const mesh = new THREE.Mesh(packetGeo, mat);
+      mesh.frustumCulled = false;
+      routesGroup.add(mesh);
+      return { type:"packet", mesh, curve, t:0, delay, speed, isPrimary:false };
+    }
+    function pulseAt(pos){
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.12, 0.01, 8, 64),
+        new THREE.MeshStandardMaterial({ color:0x9bffd7, emissive:0x0f2b24, emissiveIntensity:1.8, transparent:true, opacity:0.8 })
+      );
+      ring.position.copy(pos);
+      ring.lookAt(pos.clone().multiplyScalar(1.6));
+      routesGroup.add(ring);
+      activeEffects.push({ type:"ping", mesh:ring, age:0 });
+    }
+
+    function fragmentBurstAt(pos, key){
+      const n = 120;
+      const geo = new THREE.BufferGeometry();
+      const pts = new Float32Array(n*3);
+      const vel = new Float32Array(n*3);
+      for (let i=0;i<n;i++){
+        pts[i*3+0]=pos.x; pts[i*3+1]=pos.y; pts[i*3+2]=pos.z;
+        const v = new THREE.Vector3((Math.random()*2-1),(Math.random()*2-1),(Math.random()*2-1))
+          .normalize().multiplyScalar(0.45 + Math.random()*0.75);
+        vel[i*3+0]=v.x; vel[i*3+1]=v.y; vel[i*3+2]=v.z;
+      }
+      geo.setAttribute("position", new THREE.BufferAttribute(pts,3));
+      const cloud = new THREE.Points(geo, new THREE.PointsMaterial({ size:0.03, color:0x9bffd7, transparent:true, opacity:0.85 }));
+      cloud.frustumCulled = false;
+      routesGroup.add(cloud);
+      activeEffects.push({ type:"frag3d", cloud, vel, age:0, dur:0.55 });
+
+      const scr = toScreen(pos);
+      setTimeout(()=>openPanelWithDecode(key, scr), 220);
+    }
+
+    function surfacePoint(latDeg, lonDeg, radius){
+      const lat = THREE.MathUtils.degToRad(latDeg);
+      const lon = THREE.MathUtils.degToRad(lonDeg);
+      const x = radius * Math.cos(lat) * Math.sin(lon);
+      const y = radius * Math.sin(lat);
+      const z = radius * Math.cos(lat) * Math.cos(lon);
+      return new THREE.Vector3(x,y,z);
+    }
+    const HQ = surfacePoint(30, -95, GLOBE_R * 1.01);
+    let pendingOpen = null;
+
+    function triggerTask(key){
+      if (anyModalOpen()) return;
+      if (guide.classList.contains("on") && !localStorage.getItem("pbpGuideSeen")) return;
+
+      pendingOpen = key;
+      hudHint.textContent = "TRANSMITTING…";
+      clearRoutes();
+
+      const idx = nodeDefs.findIndex(n=>n.key===key);
+      const end = nodes[idx >= 0 ? idx : 0].position.clone().normalize().multiplyScalar(GLOBE_R * 1.02);
+
+      const mainCurve = arcCurve(HQ.clone(), end.clone(), 1.05);
+      const rMain = makeRoute(mainCurve, routeMatA, 160);
+
+      const aux1 = surfacePoint(10, 30, GLOBE_R * 1.01);
+      const aux2 = surfacePoint(-25, 140, GLOBE_R * 1.01);
+      const rA = makeRoute(arcCurve(aux1, end.clone(), 0.85), routeMatB, 130);
+      const rB = makeRoute(arcCurve(aux2, end.clone(), 0.85), routeMatB, 130);
+
+      activeEffects.push({ type:"draw", route:rMain, speed: 260 });
+      activeEffects.push({ type:"draw", route:rA, speed: 200 });
+      activeEffects.push({ type:"draw", route:rB, speed: 200 });
+
+      const p1 = spawnPacket(mainCurve, packetMatA, 0.08, 0.55);
+      const p2 = spawnPacket(mainCurve, packetMatB, 0.20, 0.60);
+      const p3 = spawnPacket(mainCurve, packetMatA, 0.34, 0.64);
+      p1.isPrimary = true;
+      activeEffects.push(p1,p2,p3);
+
+      activeEffects.push(spawnPacket(rA.curve, packetMatB, 0.18, 0.52));
+      activeEffects.push(spawnPacket(rB.curve, packetMatB, 0.26, 0.50));
+    }
+
+    document.querySelectorAll("[data-open]").forEach(btn=>{
+      btn.addEventListener("click", ()=> triggerTask(btn.getAttribute("data-open")));
+    });
+
+    // raycast pick nodes
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    addEventListener("pointermove", (e)=>{
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+    }, { passive:true });
+
+    let hoveringNode = null;
+    function pick(){
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(nodes, false);
+      hoveringNode = hits.length ? hits[0].object : null;
+      if (hoveringNode && !anyModalOpen()) hudHint.textContent = "CLICK TO TRANSMIT";
+    }
+    addEventListener("click", ()=>{
+      if (hoveringNode && !anyModalOpen()) triggerTask(hoveringNode.userData.key);
+    });
+
+    // drag rotate
+    let isDown=false, lastX=0,lastY=0, rotVelX=0, rotVelY=0, auto=true;
+    addEventListener("pointerdown", (e)=>{
+      if (anyModalOpen()) return;
+      isDown=true; lastX=e.clientX; lastY=e.clientY;
+      auto=false; btnAuto.textContent="Auto"; hudMode.textContent="MODE: DRAG";
+    });
+    addEventListener("pointerup", ()=> isDown=false);
+    addEventListener("pointerleave", ()=> isDown=false);
+    addEventListener("pointermove", (e)=>{
+      if (!isDown) return;
+      const dx=e.clientX-lastX, dy=e.clientY-lastY;
+      lastX=e.clientX; lastY=e.clientY;
+      rotVelY = dx*0.0025; rotVelX = dy*0.0022;
+      globeGroup.rotation.y += rotVelY;
+      globeGroup.rotation.x += rotVelX;
+      globeGroup.rotation.x = Math.max(-0.9, Math.min(0.9, globeGroup.rotation.x));
+    });
+
+    let scrollZ=0;
+    addEventListener("wheel", (e)=>{
+      scrollZ += e.deltaY*0.0012;
+      scrollZ = Math.max(-1.2, Math.min(1.5, scrollZ));
+    }, { passive:true });
+
+    btnReset.addEventListener("click", ()=>{
+      globeGroup.rotation.set(0,0,0);
+      rotVelX=rotVelY=0; scrollZ=0;
+      auto=true; btnAuto.textContent="Stop"; hudMode.textContent="MODE: AUTO";
+      clearRoutes(); closePanel(); closeGuide();
+    });
+    btnAuto.addEventListener("click", ()=>{
+      auto=!auto;
+      btnAuto.textContent = auto ? "Stop" : "Auto";
+      hudMode.textContent = auto ? "MODE: AUTO" : "MODE: DRAG";
+    });
+
+    // label anchoring
+    function toScreen(v3){
+      const v = v3.clone().project(camera);
+      return { x:(v.x*0.5+0.5)*innerWidth, y:(-v.y*0.5+0.5)*innerHeight, z:v.z };
+    }
+    function updateLabels(){
+      for (let i=0;i<nodes.length;i++){
+        const scr = toScreen(nodes[i].getWorldPosition(new THREE.Vector3()));
+        const el = labels[i].el;
+        const vis = scr.z < 1 && scr.z > -1;
+        el.style.left = scr.x + "px";
+        el.style.top  = scr.y + "px";
+        vis ? el.classList.add("on") : el.classList.remove("on");
+      }
+    }
+    function setNodePositions(t){
+      const r = 2.45, tilt=0.55;
+      for (let i=0;i<nodes.length;i++){
+        const ang = nodeDefs[i].theta + t*0.35;
+        const v = new THREE.Vector3(Math.cos(ang)*r, Math.sin(ang)*0.30, Math.sin(ang)*r);
+        v.applyAxisAngle(new THREE.Vector3(1,0,0), tilt);
+        nodes[i].position.copy(v);
+        nodes[i].position.y += Math.sin(t*1.6 + i)*0.03;
+        nodes[i].scale.setScalar(1.0 + 0.10*(0.5+0.5*Math.sin(t*2.2+i*1.3)));
+      }
+    }
+
+    // effects update
+    const clock = new THREE.Clock();
+    function updateEffects(dt){
+      for (let i=activeEffects.length-1; i>=0; i--){
+        const eff = activeEffects[i];
+
+        if (eff.type === "draw"){
+          const geo = eff.route.line.geometry;
+          const total = geo.attributes.position.count;
+          const add = Math.max(1, Math.floor(eff.speed * dt));
+          const cur = geo.drawRange.count;
+          const next = Math.min(total, cur + add);
+          geo.setDrawRange(0, next);
+          eff.route.line.material.opacity = Math.min(0.85, eff.route.line.material.opacity + dt*1.2);
+          continue;
+        }
+
+        if (eff.type === "packet"){
+          if (eff.delay > 0){ eff.delay -= dt; continue; }
+          eff.t += eff.speed * dt;
+          const tt = Math.min(1, eff.t);
+          const pos = eff.curve.getPointAt(tt);
+          eff.mesh.position.copy(pos);
+
+          if (eff.t >= 1){
+            pulseAt(pos);
+
+            if (eff.isPrimary && pendingOpen){
+              const key = pendingOpen;
+              pendingOpen = null;
+              fragmentBurstAt(pos.clone(), key);
+            }
+            routesGroup.remove(eff.mesh);
+            activeEffects.splice(i,1);
+          }
+          continue;
+        }
+
+        if (eff.type === "ping"){
+          eff.age += dt;
+          const k = eff.age/0.55;
+          eff.mesh.scale.setScalar(1 + k*2.2);
+          eff.mesh.material.opacity = Math.max(0, 0.85*(1-k));
+          eff.mesh.rotation.z += dt*3.5;
+          if (eff.age > 0.55){
+            routesGroup.remove(eff.mesh);
+            eff.mesh.geometry.dispose();
+            eff.mesh.material.dispose();
+            activeEffects.splice(i,1);
+          }
+          continue;
+        }
+
+        if (eff.type === "frag3d"){
+          eff.age += dt;
+          const k = eff.age/eff.dur;
+          const posAttr = eff.cloud.geometry.attributes.position;
+          for (let p=0;p<posAttr.count;p++){
+            posAttr.array[p*3+0] += eff.vel[p*3+0]*dt;
+            posAttr.array[p*3+1] += eff.vel[p*3+1]*dt;
+            posAttr.array[p*3+2] += eff.vel[p*3+2]*dt;
+            eff.vel[p*3+0]*=0.94; eff.vel[p*3+1]*=0.94; eff.vel[p*3+2]*=0.94;
+          }
+          posAttr.needsUpdate = true;
+          eff.cloud.material.opacity = Math.max(0, 0.85*(1-k));
+          if (eff.age >= eff.dur){
+            routesGroup.remove(eff.cloud);
+            eff.cloud.geometry.dispose();
+            eff.cloud.material.dispose();
+            activeEffects.splice(i,1);
+          }
+          continue;
+        }
+      }
+    }
+
+    function resize(){
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    }
+    addEventListener("resize", resize);
+
+    let t = 0;
+    function animate(){
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.033, clock.getDelta());
+      t += 0.010;
+
+      // update particle field (NEW)
+      updateField(dt, t);
+
+      if (auto && !anyModalOpen()){
+        globeGroup.rotation.y += 0.0032;
+        globeGroup.rotation.x = Math.sin(t*0.35)*0.12;
+      } else {
+        globeGroup.rotation.y += rotVelY;
+        globeGroup.rotation.x += rotVelX;
+        rotVelY *= 0.92; rotVelX *= 0.90;
+        globeGroup.rotation.x = Math.max(-0.9, Math.min(0.9, globeGroup.rotation.x));
+      }
+
+      globeGroup.scale.setScalar(1 + 0.01*Math.sin(t*1.2));
+      setNodePositions(t);
+      updateLabels();
+
+      camera.position.z = lerp(camera.position.z, 8.4 + scrollZ, 0.06);
+      stars.rotation.y += 0.00035;
+
+      if (!anyModalOpen()) pick();
+      updateEffects(dt);
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
